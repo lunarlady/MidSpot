@@ -1,0 +1,251 @@
+<!doctype html>
+<html int lang="en">
+<head>
+<style>
+body{
+    background: linear-gradient(180deg, #4CDFC6, #ffffff);
+    background-repeat: no-repeat;
+    background-size: 100%;
+}
+input[type=text] {
+    width: 90%;
+    box-sizing: border-box;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    font-size: 28px;
+    text-align: center;
+    background-color: white;
+    background-repeat: no-repeat;
+    padding: 10px 20px 14px 40px;
+}
+.button1 {
+  display: inline-block;
+  border-radius: 4px;
+  background-color: #F14362;
+  border: none;
+  color: #FFFFFF;
+  text-align: center;
+  font-size: 28px;
+  padding: 13px;
+  width: 100px;
+  transition: all 0.5s;
+  cursor: pointer;
+  margin: 5px;
+}
+.button1 span {
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
+  transition: 0.5s;
+}
+.button1 span:after {
+  content: '\00bb';
+  position: absolute;
+  opacity: 0;
+  top: 0;
+  right: -20px;
+  transition: 0.5s;
+}
+.button1:hover span {
+  padding-right: 25px;
+}
+.button1:hover span:after {
+  opacity: 1;
+  right: 0;
+}
+.button2{
+  	border-radius: 4px;
+  	background-color: #9F94D4;
+  	border: none;
+  	color: #ffffff;
+ 	font-weight: bold;
+  	text-align: center;
+  	display:block;
+    	margin: 0 auto;
+  	width: 100%;
+  	transition: all 0.5s;
+  	cursor: pointer;
+    	padding: 13px;
+}
+p {
+    border: 1px solid 33ffcc;
+    outline-color: 33ffcc;
+    background-color: white;
+}
+p.solid {outline-style: solid;}
+.footer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 1rem;
+  background-color: #BCBBCA;
+  text-align: center;
+  font-size: 16px;
+}
+</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+  <link rel="stylesheet" href="/resources/demos/style.css">
+  <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script>
+  var $j = jQuery.noConflict();
+  var map;
+  var friends = [];
+  var add;
+  var names = '{{friendsList|tojson}}';
+  var nm = JSON.parse(names); 
+  function callback(results, status) {
+    if (status === google.maps.places.PlacesServiceStatus.OK) {
+      for (var i = 0; i < results.length; i++) {
+        createMarker(results[i]);
+      }
+    }
+  }
+  
+  function addFriend(){
+    add = document.getElementById('tags').value;
+  	friends.push(add);
+    
+  }
+  function printer(){
+  	$.post("/pullFriends",{ selected_friends: friends  }); <!-- send your position to server -->  
+  }
+  var map;
+  var infowindow;
+  var userLoc;
+  var midpoint;
+  var midJSON;
+  var dist;
+  var locOfAll;
+  function initMap() {
+	  userLoc = {lat: 36.968069, lng: -122.029902};
+	  map = new google.maps.Map(document.getElementById("map"), {
+	  center: userLoc,
+	  zoom: 11
+	  });
+      if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(function(position){
+          var pos = {
+             lat: position.coords.latitude,
+             lng: position.coords.longitude
+          };
+          //Sending user-position to be stored on server
+          $.post("/postmethod",{ javascript_data: pos  });
+          midpoint = {
+              lat: 0.0,
+              lng: 0.0
+          };
+          var locOfUsers = '{{ users|tojson }}' ;
+          midJSON = '{{ midpoint|tojson }}' ;
+          dist = '{{ dist|tojson }}' ;
+          userLoc = {
+             lat: 0.0,
+             lng: 0.0
+          };
+	  midpoint['lat'] = JSON.parse(midJSON)['lat']
+	  midpoint['lng'] = JSON.parse(midJSON)['lng']
+          var locOfAll = JSON.parse(locOfUsers);
+          var userNumber = locOfAll.length;
+          var goldStar = {
+            path: 'M 125,5 155,90 245,90 175,145 200,230 125,180 50,230 75,145 5,90 95,90 z',
+            fillColor: 'purple',
+            fillOpacity: 0.8,
+            scale: 0.1,
+            strokeColor: 'purple',
+            strokeWeight: 6
+          };
+          for(i=0; i< userNumber; i++){
+            var pLoc = {lat: locOfAll[i]['lat'], lng: locOfAll[i]['lng'] }
+            new google.maps.Marker({
+                 position: pLoc,
+                 icon: goldStar,
+                 map: map,
+                 title: `${i} (one of many)`
+             });
+           }
+          var markerMid = new google.maps.Marker({
+               position: midpoint,
+               map: map,
+               title: 'The midpoint.'
+           });
+            //Searches for place based on dist of pins and midpoint
+            //window.alert('Searching...?');
+            infowindow = new google.maps.InfoWindow();
+            var service = new google.maps.places.PlacesService(map);
+            service.nearbySearch({
+               location: midpoint,
+               radius: (dist*111111)*(0.55),
+               type: ['store']
+             }, callback);
+        },function(error){
+            window.alert(error.code);
+        });
+   }        
+  }
+      function createMarker(place) {
+        var placeLoc = place.geometry.location;
+        var marker = new google.maps.Marker({
+          map: map,
+          position: place.geometry.location
+        });
+        google.maps.event.addListener(marker, 'click', function() {
+          infowindow.setContent(place.name + " ["+place.rating+"]");
+          infowindow.open(map, this);
+        });
+      }
+  $j( function() {
+    var availableTags = [
+      nm[2].toString(),
+      nm[0].toString(),
+      nm[1].toString(),
+      nm[3].toString(),
+    ];
+    $j( "#tags" ).autocomplete({
+      source: availableTags
+    });
+  } );
+  </script>
+  
+</head>
+<body>
+
+<div class="ui-widget">
+  <input type="text" id="tags" name="search" placeholder="Find your friends..">
+<button class="button1" style="vertical-align:middle"onclick="addFriend()"><span>Add </span></button>
+
+<div class="footer">HackUCSC 2017</div>
+
+<div>
+
+    <div style="float: left; width: 50%">
+    	 <div id="map" style="width:450px;height:400px;"></div>
+	<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCgddWSbBnj84egCweVgzEBNPAXoTo5v1w&libraries=places,geometry&callback=initMap" async defer></script> 
+    </div>
+    <div style="float: right; width: 50%"><button class="button button2" style="vertical-align:middle" onclick="printer()">
+        </div>
+        <div style="float: right; width: 50%">
+    <ul>    
+        {% for place in locations %}
+        <li>{{ place.name }}
+        <p class="solid" align="center">{{place.name}}</p>  
+        <p class="solid" align="center"> {{place.location}}</p> 
+        <p class="solid" align="center">{{place.rating}} </p>
+        </li>
+        {% endfor %}
+    </ul>
+    </div>
+    <!--
+    <div style="float: right; width: 50%"><button class="button button2" style="vertical-align:middle" onclick="printer()"><span> FIND SPOTS! </span></button><p class="solid" align="center">Place 1 <br> 666 Hell Highway <br> Satan Cruz, CA <br> User Rating: 4.2</p><p class="solid" align="center">Place 1 <br> 666 Hell Highway <br> Satan Cruz, CA <br> User Rating: 4.1</p><p class="solid" align="center">Place 1 <br> 666 Hell Highway <br> Satan Cruz, CA <br> User Rating: 3.9</p></div>
+</div> 
+-->
+</body>
+</html>
+
+    Contact GitHub API Training Shop Blog About 
+
+    © 2017 GitHub, Inc. Terms Privacy Security Status Help 
+
